@@ -115,6 +115,39 @@ for doc in query_results['results']['documents'][0]:
     print(doc)
 ```
 
+### 🖥️ Streamlit UI (Web Interface)
+
+The project includes a full-featured web interface:
+
+```bash
+streamlit run app.py
+```
+
+This opens a dashboard where you can:
+- Upload and process documents (PDF, DOCX, TXT)
+- Choose chunking strategies visually
+- Chat with your documents using the **Multi-Agent Orchestrator**
+- View retrieval results and processing statistics
+
+### 🤖 Multi-Agent Orchestration
+
+The system features a Multi-Agent architecture combining **RAG** (Retrieval) and **Gemini** (Generation):
+
+```python
+from multi_agent import MultiAgentOrchestrator
+
+# Initialize agents
+orchestrator = MultiAgentOrchestrator()
+
+# Ask questions related to your docs
+result = orchestrator.ask("ما هي خدمات إعادة التدوير؟")
+print(result['answer'])
+```
+
+**Setup for Multi-Agent:**
+1. Ensure `GEMINI_API_KEY` is set in `.env`
+2. Run the interactive chat: `python multi_agent.py`
+
 ### Run Examples
 
 **Basic example**:
