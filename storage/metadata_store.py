@@ -233,6 +233,27 @@ class MetadataStore:
         finally:
             session.close()
     
+    def delete_document_by_path(self, file_path: str) -> bool:
+        """Delete document and its chunks by file path"""
+        session = self.get_session()
+        try:
+            doc = session.query(DocumentMetadata).filter_by(file_path=file_path).first()
+            if doc:
+                # Delete associated chunks first
+                session.query(ChunkMetadata).filter_by(document_id=doc.id).delete()
+                # Delete document
+                session.delete(doc)
+                session.commit()
+                logger.info(f"Deleted existing document: {file_path}")
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Failed to delete document: {e}")
+            return False
+        finally:
+            session.close()
+
     def get_all_documents(self) -> List[Dict]:
         """Get all documents"""
         session = self.get_session()
@@ -287,6 +308,16 @@ class MetadataStore:
         finally:
             session.close()
     
+    def get_all_chunks(self) -> List[Dict]:
+        """Get all chunks in the database"""
+        session = self.get_session()
+        
+        try:
+            chunks = session.query(ChunkMetadata).all()
+            return [chunk.to_dict() for chunk in chunks]
+        finally:
+            session.close()
+
     def get_chunks_by_document(self, doc_id: int) -> List[Dict]:
         """Get all chunks for a document"""
         session = self.get_session()
@@ -372,3 +403,10 @@ class MetadataStore:
             }
         finally:
             session.close()
+
+    def reset(self):
+        """Reset the metadata store (delete all data)"""
+        logger.warning("Resetting metadata store...")
+        Base.metadata.drop_all(self.engine)
+        Base.metadata.create_all(self.engine)
+        logger.info("Metadata store reset complete")

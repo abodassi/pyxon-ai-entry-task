@@ -154,20 +154,23 @@ class ArabicTextProcessor:
         
         return normalized
     
-    def create_dual_versions(self, text: str) -> Tuple[str, str]:
+    def create_dual_versions(self, text: str, apply_rtl_fix: bool = True) -> Tuple[str, str]:
         """
         Create both retrieval-friendly (with diacritics) and 
         search-friendly (normalized) versions of the text
         
         Args:
             text: Original Arabic text
+            apply_rtl_fix: Whether to apply RTL correction (set to True for PDF)
             
         Returns:
             Tuple of (retrieval_version, search_version)
         """
-        # First fix RTL and PDF errors
-        retrieval_version = self.fix_rtl_extraction(text)
-        retrieval_version = self.fix_common_pdf_errors(retrieval_version)
+        # First fix RTL and PDF errors (only if requested)
+        retrieval_version = text
+        if apply_rtl_fix:
+            retrieval_version = self.fix_rtl_extraction(retrieval_version)
+            retrieval_version = self.fix_common_pdf_errors(retrieval_version)
         
         # Create search version
         search_version = self.normalize_for_search(retrieval_version)
@@ -253,19 +256,20 @@ class ArabicTextProcessor:
         
         return '\n'.join(lines)
     
-    def process_text(self, text: str, mode: str = 'dual') -> Dict[str, str]:
+    def process_text(self, text: str, mode: str = 'dual', apply_rtl_fix: bool = True) -> Dict[str, str]:
         """
         Main processing method that applies all necessary transformations
         
         Args:
             text: Raw text to process
             mode: Processing mode - 'dual', 'retrieval', or 'search'
+            apply_rtl_fix: Whether to apply RTL correction
             
         Returns:
             Dictionary with processed text version(s)
         """
         if mode == 'dual':
-            retrieval, search = self.create_dual_versions(text)
+            retrieval, search = self.create_dual_versions(text, apply_rtl_fix=apply_rtl_fix)
             retrieval = self.clean_whitespace(retrieval)
             search = self.clean_whitespace(search)
             
@@ -277,8 +281,10 @@ class ArabicTextProcessor:
             }
         
         elif mode == 'retrieval':
-            retrieval = self.fix_rtl_extraction(text)
-            retrieval = self.fix_common_pdf_errors(retrieval)
+            retrieval = text
+            if apply_rtl_fix:
+                retrieval = self.fix_rtl_extraction(retrieval)
+                retrieval = self.fix_common_pdf_errors(retrieval)
             retrieval = self.clean_whitespace(retrieval)
             
             return {
@@ -287,8 +293,11 @@ class ArabicTextProcessor:
             }
         
         elif mode == 'search':
-            retrieval = self.fix_rtl_extraction(text)
-            retrieval = self.fix_common_pdf_errors(retrieval)
+            retrieval = text
+            if apply_rtl_fix:
+                retrieval = self.fix_rtl_extraction(retrieval)
+                retrieval = self.fix_common_pdf_errors(retrieval)
+            
             search = self.normalize_for_search(retrieval)
             search = self.clean_whitespace(search)
             

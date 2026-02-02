@@ -47,17 +47,29 @@ class EmbeddingManager:
         
         logger.info(f"Model loaded. Embedding dimension: {self.dimension}")
     
-    def encode_single(self, text: str, normalize: bool = True) -> np.ndarray:
+    def _prepare_text(self, text: str, is_query: bool = False) -> str:
+        """Add prefix for e5 models if needed"""
+        if "e5" in self.model_name.lower():
+            prefix = "query: " if is_query else "passage: "
+            # Check if prefix already exists to avoid double prefixing
+            if not text.startswith(prefix):
+                return f"{prefix}{text}"
+        return text
+
+    def encode_single(self, text: str, is_query: bool = False, normalize: bool = True) -> np.ndarray:
         """
         Encode a single text into embedding
         
         Args:
             text: Text to encode
+            is_query: Whether this is a search query (for E5 models)
             normalize: Whether to normalize embedding to unit length
             
         Returns:
             Embedding vector as numpy array
         """
+        text = self._prepare_text(text, is_query)
+        
         embedding = self.model.encode(
             text,
             normalize_embeddings=normalize,
@@ -69,6 +81,7 @@ class EmbeddingManager:
     def encode_batch(
         self,
         texts: List[str],
+        is_query: bool = False,
         batch_size: int = 32,
         normalize: bool = True,
         show_progress: bool = True
@@ -78,6 +91,7 @@ class EmbeddingManager:
         
         Args:
             texts: List of texts to encode
+            is_query: Whether these are search queries (for E5 models)
             batch_size: Batch size for encoding
             normalize: Whether to normalize embeddings
             show_progress: Whether to show progress bar
@@ -87,8 +101,10 @@ class EmbeddingManager:
         """
         logger.info(f"Encoding {len(texts)} texts with batch size {batch_size}")
         
+        processed_texts = [self._prepare_text(t, is_query) for t in texts]
+        
         embeddings = self.model.encode(
-            texts,
+            processed_texts,
             batch_size=batch_size,
             normalize_embeddings=normalize,
             show_progress_bar=show_progress

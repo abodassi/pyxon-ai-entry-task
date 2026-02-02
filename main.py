@@ -5,10 +5,13 @@ import sys
 import os
 
 # Configure UTF-8 encoding for Windows console
+# Configure UTF-8 encoding for Windows console
 if sys.platform == 'win32':
     import codecs
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+    if hasattr(sys.stdout, 'buffer'):
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    if hasattr(sys.stderr, 'buffer'):
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 
 import logging
 from pathlib import Path
@@ -122,7 +125,8 @@ class ArabicRAGPipeline:
     def process_document(
         self,
         file_path: str,
-        custom_metadata: Optional[Dict] = None
+        custom_metadata: Optional[Dict] = None,
+        status_callback: Optional[Any] = None
     ) -> Dict[str, Any]:
         """
         Process a single document through the full pipeline
@@ -130,20 +134,31 @@ class ArabicRAGPipeline:
         Args:
             file_path: Path to document
             custom_metadata: Optional custom metadata
+            status_callback: Optional callback function(str) for status updates
             
         Returns:
             Dictionary with processing results
         """
         logger.info(f"Processing document: {file_path}")
         
+        if status_callback:
+            status_callback("جاري التحضير...")
+        
         file_path = Path(file_path)
+        
+        # Clean up existing metadata if re-processing
+        self.metadata_store.delete_document_by_path(str(file_path))
         
         # 1. Parse document
         logger.info("Step 1: Parsing document...")
+        if status_callback:
+            status_callback("جاري قراءة الملف وتحليل النصوص...")
         doc_data = self.parser.parse(file_path)
         
         # 2. Chunk text
         logger.info("Step 2: Chunking text...")
+        if status_callback:
+            status_callback("جاري تقسيم النصوص (Chunking)...")
         chunks = self.chunking_strategy.chunk(
             text=doc_data['retrieval_text'],
             metadata={
@@ -158,6 +173,8 @@ class ArabicRAGPipeline:
         
         # 3. Generate embeddings
         logger.info("Step 3: Generating embeddings...")
+        if status_callback:
+            status_callback(f"جاري إنشاء Embeddings لـ {len(chunks)} مقطع...")
         chunk_texts = [chunk.text for chunk in chunks]
         embeddings = self.embedding_manager.encode_batch(
             chunk_texts,
@@ -166,6 +183,8 @@ class ArabicRAGPipeline:
         
         # 4. Store in vector database
         logger.info("Step 4: Storing in vector database...")
+        if status_callback:
+            status_callback("جاري الحفظ في قاعدة البيانات المتجهة...")
         chunk_metadatas = [chunk.metadata for chunk in chunks]
         chunk_ids = self.vector_store.add_chunks(
             chunks=chunk_texts,
@@ -175,6 +194,8 @@ class ArabicRAGPipeline:
         
         # 5. Store metadata in SQL database
         logger.info("Step 5: Storing metadata...")
+        if status_callback:
+            status_callback("جاري حفظ البيانات الوصفية...")
         doc_id = self.metadata_store.add_document(
             file_path=str(file_path),
             file_name=file_path.name,
@@ -279,7 +300,7 @@ class ArabicRAGPipeline:
         search_text = processed_query.get('search', query_text)
         
         # Generate query embedding
-        query_embedding = self.embedding_manager.encode_single(search_text)
+        query_embedding = self.embedding_manager.encode_single(search_text, is_query=True)
         
         # Query vector store
         results = self.vector_store.query(
@@ -384,7 +405,7 @@ class ArabicRAGPipeline:
         """Reset the pipeline (clear all data)"""
         logger.warning("Resetting pipeline - this will delete all data!")
         self.vector_store.reset()
-        # Note: SQLite database is not reset to preserve history
+        self.metadata_store.reset()
         logger.info("Pipeline reset complete")
 
 

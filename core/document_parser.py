@@ -130,7 +130,7 @@ class PDFParser(BaseParser):
             raise ValueError(f"Invalid engine: {engine}")
         
         # Process Arabic text
-        processed = self.arabic_processor.process_text(raw_text, mode='dual')
+        processed = self.arabic_processor.process_text(raw_text, mode='dual', apply_rtl_fix=True)
         
         return {
             'raw_text': raw_text,
@@ -186,7 +186,7 @@ class DOCXParser(BaseParser):
                 raw_text += "\n\n--- Tables ---\n\n" + "\n".join(tables_text)
             
             # Process Arabic text
-            processed = self.arabic_processor.process_text(raw_text, mode='dual')
+            processed = self.arabic_processor.process_text(raw_text, mode='dual', apply_rtl_fix=False)
             
             return {
                 'raw_text': raw_text,
